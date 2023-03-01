@@ -1,8 +1,9 @@
 <?php
 
-use App\Http\Controllers\TestController;
+use App\Http\Controllers\PostController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,5 +17,24 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware('location')->group(function () {
-    Route::get('check', [TestController::class, 'check']);
+
+    Route::get('/migrate-and-seed', function (Request $request) {
+
+        return true;
+        // Run migrations
+        Artisan::call('migrate');
+
+        // Seed the database
+        Artisan::call('db:seed');
+
+        return response()->json(['message' => 'Migration and seeding complete']);
+    });
+
+    Route::group(['prefix' => 'posts'], function () {
+        Route::get('/', [PostController::class, 'index']);
+        Route::get('/{post}', [PostController::class, 'show']);
+        Route::post('/', [PostController::class, 'store']);
+        Route::put('/{post}', [PostController::class, 'update']);
+        Route::delete('/{post}', [PostController::class, 'destroy']);
+    });
 });

@@ -2,20 +2,49 @@
 
 namespace App\Databases;
 
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Events\QueryExecuted;
 
 class ConnectionManager
 {
     public static $userLocation;
+    private static $queryOperation = 'write';
 
      /**
      * Get the user's location.
      *
      * @return string
      */
-    protected static function getUserLocation()
+    protected static function getUserLocation(): string
     {
         return static::$userLocation;
+    }
+
+    /**
+     * Register a listener for database query events and
+     * determine whether the query is a read or write operation.
+     *
+     * @return void
+     */
+    public static function registerQueryListener(): void
+    {
+        DB::listen(function (QueryExecuted $queryExecuted) {
+            $query = $queryExecuted->sql;
+            $queryType = str_starts_with(trim($query), 'select');
+            static::setQueryOperation($queryType);
+        });
+    }
+
+    /**
+     * Set the query operation based on the query type.
+     *
+     * @param string $queryType The type of query (e.g. "select", "insert", "update", "delete").
+     * @return void
+     */
+    private static function setQueryOperation($queryType): void
+    {
+        static::$queryOperation = $queryType === 'select' ? 'read' : 'write';
     }
 
     /**
@@ -23,7 +52,7 @@ class ConnectionManager
      *
      * @return \Illuminate\Database\Connection
      */
-    public static function connection()
+    public static function connection(): Connection
     {
         if (static::isReadOperation()) {
             $connection = static::getConnectionByLocation();
@@ -39,7 +68,7 @@ class ConnectionManager
      *
      * @return string
      */
-    public static function getConnectionByLocation()
+    public static function getConnectionByLocation(): string
     {
         $userLocation = static::getUserLocation();
 
@@ -57,20 +86,8 @@ class ConnectionManager
      *
      * @return bool
      */
-    protected static function isReadOperation()
+    protected static function isReadOperation(): bool
     {
-        return ! in_array(static::getCurrentMethod(), ['insert', 'update', 'delete']);
-    }
-
-    /**
-     * Get the current database method being called.
-     *
-     * @return string
-     */
-    protected static function getCurrentMethod()
-    {
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
-
-        return $backtrace[1]['function'];
+        return static::$queryOperation === 'read';
     }
 }

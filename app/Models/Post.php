@@ -10,4 +10,6 @@ class Post extends Model
 {
     use ConnectionTrait;
     use HasFactory;
+
+    protected $guarded = ['id'];
 }
